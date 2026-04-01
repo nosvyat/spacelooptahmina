@@ -1,6 +1,9 @@
 import { greetings } from './data/greetings';
 import { birthdayGreetings } from './data/birthdayGreetings';
 import { messages } from './data/messages';
+import { compliments } from './data/compliments';
+import { rareMessages } from './data/rareMessages';
+import { ultraRareMessages } from './data/ultraRareMessages';
 import { formatDateRu, isBirthday } from './utils/date';
 import { typeText } from './utils/typing';
 import { shuffleArray } from './utils/shuffle';
@@ -48,18 +51,83 @@ export function initApp() {
   const screenEl = document.querySelector('#screen');
 
   let typingLocked = true;
+  let lastShownMessage = '';
+
   let currentMessagesPool = shuffleArray(messages);
+  let currentComplimentsPool = shuffleArray(compliments);
+  let currentRarePool = shuffleArray(rareMessages);
+  let currentUltraRarePool = shuffleArray(ultraRareMessages);
 
   function getTelegramName() {
     return tg?.initDataUnsafe?.user?.first_name || 'Тахмина';
   }
 
-  function getNextMessage() {
-    if (currentMessagesPool.length === 0) {
-      currentMessagesPool = shuffleArray(messages);
+  function refillPoolIfEmpty(pool, sourceArray) {
+    return pool.length === 0 ? shuffleArray(sourceArray) : pool;
+  }
+
+  function getNextFromPool(poolName) {
+    if (poolName === 'messages') {
+      currentMessagesPool = refillPoolIfEmpty(currentMessagesPool, messages);
+      return currentMessagesPool.pop();
     }
 
-    return currentMessagesPool.pop();
+    if (poolName === 'compliments') {
+      currentComplimentsPool = refillPoolIfEmpty(currentComplimentsPool, compliments);
+      return currentComplimentsPool.pop();
+    }
+
+    if (poolName === 'rare') {
+      currentRarePool = refillPoolIfEmpty(currentRarePool, rareMessages);
+      return currentRarePool.pop();
+    }
+
+    currentUltraRarePool = refillPoolIfEmpty(currentUltraRarePool, ultraRareMessages);
+    return currentUltraRarePool.pop();
+  }
+
+  function getRandomCategory() {
+    const random = Math.random() * 100;
+
+    // 65% обычные мысли
+    if (random < 65) return 'messages';
+
+    // 20% комплименты
+    if (random < 85) return 'compliments';
+
+    // 10% редкие
+    if (random < 95) return 'rare';
+
+    // 5% очень редкие
+    return 'ultraRare';
+  }
+
+  function getNextMessage() {
+    let nextMessage = '';
+    let attempts = 0;
+
+    while (!nextMessage || nextMessage === lastShownMessage) {
+      const category = getRandomCategory();
+
+      if (category === 'messages') {
+        nextMessage = getNextFromPool('messages');
+      } else if (category === 'compliments') {
+        nextMessage = getNextFromPool('compliments');
+      } else if (category === 'rare') {
+        nextMessage = getNextFromPool('rare');
+      } else {
+        nextMessage = getNextFromPool('ultraRare');
+      }
+
+      attempts += 1;
+
+      if (attempts > 10) {
+        break;
+      }
+    }
+
+    lastShownMessage = nextMessage;
+    return nextMessage;
   }
 
   async function showIntro() {
